@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密貨幣趨勢監控</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <button id="settingsBtn" class="settings-btn" title="設定">⚙️</button>
+
+    <h1>市場異常監控看板</h1>
+    <div class="subtitle">Real-time Crypto Anomaly Monitor</div>
+
+    <div class="status-bar">
+        <span id="dot" class="dot"></span>
+        <span id="statusText">正在連線至數據中心...</span>
+    </div>
+
+    <div id="content">
+        <div class="loading">正在等待伺服器回傳分析結果...<br>(請稍候，首次載入可能需要幾秒鐘)</div>
+    </div>
+
+    <div class="footer">Data provided by BotVsing Analysis Core</div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>監控通知設定</h2>
+            
+            <div class="setting-item">
+                <label>桌面通知</label>
+                <label class="switch">
+                    <input type="checkbox" id="notifyToggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>提示音效</label>
+                <label class="switch">
+                    <input type="checkbox" id="soundToggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>監控方向</label>
+                <select id="directionSelect" class="settings-select">
+                    <option value="all">全部監控</option>
+                    <option value="bull">只看多頭</option>
+                    <option value="bear">只看空頭</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <label>音量大小 <span id="volValue">50%</span></label>
+                <input type="range" id="volumeSlider" min="0" max="100" value="50">
+            </div>
+
+            <button id="testNotifyBtn" class="test-btn">測試通知與音效</button>
+        </div>
+    </div>
+
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+/* 原本的樣式保持不變 */
+body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #121212; color: #e0e0e0; }
+h1 { text-align: center; color: #fff; margin-bottom: 5px; text-shadow: 0 0 10px rgba(33, 150, 243, 0.5); }
+.subtitle { text-align: center; color: #888; font-size: 0.9em; margin-bottom: 30px; }
+
+.status-bar { text-align: right; margin-bottom: 15px; font-size: 0.8em; color: #666; display: flex; align-items: center; justify-content: flex-end; gap: 8px;}
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #444; }
+.dot.green { background: #4CAF50; box-shadow: 0 0 5px #4CAF50; }
+.dot.red { background: #F44336; box-shadow: 0 0 5px #F44336; }
+.dot.orange { background: #FF9800; box-shadow: 0 0 5px #FF9800; }
+
+.section { margin-bottom: 25px; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid #333; }
+.section h3 { margin-top: 0; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+.section.bull { border-left: 5px solid #4CAF50; }
+.section.bull h3 { color: #4CAF50; border-color: #4CAF50; }
+.section.bear { border-left: 5px solid #F44336; }
+.section.bear h3 { color: #F44336; border-color: #F44336; }
+.section.neut { border-left: 5px solid #2196F3; }
+.section.neut h3 { color: #2196F3; border-color: #2196F3; }
+
+ul { list-style: none; padding: 0; margin: 0; }
+li { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #2a2a2a; transition: all 0.2s; border-radius: 8px; margin-bottom: 5px; background: #252525; }
+li:hover { transform: translateY(-2px); background: #2f2f2f; }
+.coin-name { font-weight: bold; font-size: 1.2em; color: #fff; letter-spacing: 1px; }
+.badges { display: flex; gap: 8px; align-items: center; }
+.badge { padding: 5px 10px; border-radius: 6px; font-size: 0.85em; font-weight: 500; }
+.score-badge { background: #333; color: #fff; border: 1px solid #555; }
+.msg-badge { background: #1a1a1a; border: 1px solid #444; color: #aaa; }
+.fire { color: #ff9800; font-weight: bold; }
+.empty-msg { color: #555; font-style: italic; text-align: center; padding: 20px; }
+.loading { text-align: center; padding: 40px; color: #666; font-style: italic; }
+.footer { text-align: center; margin-top: 40px; color: #444; font-size: 0.8em; }
+
+/* 設定按鈕與彈窗 */
+.settings-btn {
+    position: absolute; top: 20px; right: 20px;
+    background: transparent; border: none; font-size: 1.5em; cursor: pointer; color: #888; transition: transform 0.3s;
+}
+.settings-btn:hover { color: #fff; transform: rotate(90deg); }
+
+.modal {
+    display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+}
+.modal-content {
+    background-color: #252525; margin: 15% auto; padding: 25px; border: 1px solid #444;
+    width: 90%; max-width: 400px; border-radius: 12px; color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+.close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+.close-btn:hover { color: #fff; }
+.setting-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+
+/* 開關與滑桿 */
+.switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: #2196F3; }
+input:checked + .slider:before { transform: translateX(26px); }
+input[type=range] { width: 100px; accent-color: #2196F3; }
+
+/* --- 新增樣式：下拉選單 --- */
+.settings-select {
+    padding: 5px 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; outline: none;
+}
+.settings-select:focus { border-color: #2196F3; }
+
+.test-btn { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; cursor: pointer; }
+.test-btn:hover { background: #444; }
+
+/* --- 新增樣式：浮動通知 (Toast) --- */
+.notification-container {
+    position: fixed; bottom: 20px; right: 20px; z-index: 999;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.toast-alert {
+    background: #252525; color: #fff; width: 300px; padding: 15px; border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-left: 5px solid #555;
+    position: relative; animation: slideIn 0.3s ease-out;
+}
+.toast-alert.bull { border-left-color: #4CAF50; }
+.toast-alert.bear { border-left-color: #F44336; }
+.toast-alert.mixed { border-left-color: #FF9800; }
+
+.toast-header { font-weight: bold; margin-bottom: 5px; font-size: 1.1em; display: flex; justify-content: space-between; }
+.toast-close { cursor: pointer; color: #aaa; font-weight: normal; }
+.toast-close:hover { color: #fff; }
+.toast-body { font-size: 0.9em; line-height: 1.4; color: #ddd; }
+.added { color: #4CAF50; }
+.removed { color: #F44336; }
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
