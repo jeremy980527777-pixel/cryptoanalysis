@@ -1,10 +1,9 @@
-/* 原本的樣式保持不變 */
 body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #121212; color: #e0e0e0; }
-h1 { text-align: center; color: #fff; margin-bottom: 5px; text-shadow: 0 0 10px rgba(33, 150, 243, 0.5); }
-.subtitle { text-align: center; color: #888; font-size: 0.9em; margin-bottom: 30px; }
+h1 { text-align: center; color: #fff; margin-bottom: 5px; text-shadow: 0 0 10px rgba(33, 150, 243, 0.5); letter-spacing: 1px; }
+.subtitle { text-align: center; color: #888; font-size: 0.9em; margin-bottom: 30px; letter-spacing: 0.5px; }
 
 .status-bar { text-align: right; margin-bottom: 15px; font-size: 0.8em; color: #666; display: flex; align-items: center; justify-content: flex-end; gap: 8px;}
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #444; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #444; transition: all 0.3s; }
 .dot.green { background: #4CAF50; box-shadow: 0 0 5px #4CAF50; }
 .dot.red { background: #F44336; box-shadow: 0 0 5px #F44336; }
 .dot.orange { background: #FF9800; box-shadow: 0 0 5px #FF9800; }
@@ -31,7 +30,7 @@ li:hover { transform: translateY(-2px); background: #2f2f2f; }
 .loading { text-align: center; padding: 40px; color: #666; font-style: italic; }
 .footer { text-align: center; margin-top: 40px; color: #444; font-size: 0.8em; }
 
-/* 設定按鈕與彈窗 */
+/* Settings Modal */
 .settings-btn {
     position: absolute; top: 20px; right: 20px;
     background: transparent; border: none; font-size: 1.5em; cursor: pointer; color: #888; transition: transform 0.3s;
@@ -43,14 +42,29 @@ li:hover { transform: translateY(-2px); background: #2f2f2f; }
     background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
 }
 .modal-content {
-    background-color: #252525; margin: 15% auto; padding: 25px; border: 1px solid #444;
+    background-color: #252525; margin: 10% auto; padding: 25px; border: 1px solid #444;
     width: 90%; max-width: 400px; border-radius: 12px; color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5);
 }
 .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
 .close-btn:hover { color: #fff; }
 .setting-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
 
-/* 開關與滑桿 */
+/* Inputs & Buttons */
+.key-input {
+    flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid #555; 
+    background: #333; color: #fff; outline: none; transition: border 0.3s;
+}
+.key-input:focus { border-color: #2196F3; }
+.save-btn {
+    padding: 8px 15px; background: #2196F3; color: white; border: none; 
+    border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s;
+}
+.save-btn:hover { background: #1976D2; }
+.settings-select { padding: 5px 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; outline: none; }
+.test-btn { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+.test-btn:hover { background: #444; }
+
+/* Switch & Slider */
 .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 34px; }
@@ -59,37 +73,62 @@ input:checked + .slider { background-color: #2196F3; }
 input:checked + .slider:before { transform: translateX(26px); }
 input[type=range] { width: 100px; accent-color: #2196F3; }
 
-/* --- 新增樣式：下拉選單 --- */
-.settings-select {
-    padding: 5px 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; outline: none;
-}
-.settings-select:focus { border-color: #2196F3; }
-
-.test-btn { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 5px; cursor: pointer; }
-.test-btn:hover { background: #444; }
-
-/* --- 新增樣式：浮動通知 (Toast) --- */
+/* Notification Toasts */
 .notification-container {
     position: fixed; bottom: 20px; right: 20px; z-index: 999;
     display: flex; flex-direction: column; gap: 10px;
+    max-height: 80vh; overflow-y: auto;
 }
 .toast-alert {
     background: #252525; color: #fff; width: 300px; padding: 15px; border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-left: 5px solid #555;
-    position: relative; animation: slideIn 0.3s ease-out;
+    position: relative; animation: slideIn 0.3s ease-out; flex-shrink: 0;
 }
 .toast-alert.bull { border-left-color: #4CAF50; }
 .toast-alert.bear { border-left-color: #F44336; }
 .toast-alert.mixed { border-left-color: #FF9800; }
 
-.toast-header { font-weight: bold; margin-bottom: 5px; font-size: 1.1em; display: flex; justify-content: space-between; }
-.toast-close { cursor: pointer; color: #aaa; font-weight: normal; }
+.toast-header { 
+    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; 
+}
+.toast-title-group { display: flex; flex-direction: column; }
+.toast-title-text { font-weight: bold; font-size: 1.05em; }
+.toast-time { font-size: 0.75em; color: #888; margin-top: 3px; }
+.toast-close { cursor: pointer; color: #aaa; font-weight: bold; font-size: 1.2em; line-height: 1; padding: 0 5px; }
 .toast-close:hover { color: #fff; }
 .toast-body { font-size: 0.9em; line-height: 1.4; color: #ddd; }
+
 .added { color: #4CAF50; }
 .removed { color: #F44336; }
 
 @keyframes slideIn {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
+}
+
+/* --- 新增：霸榜時間標籤 --- */
+.time-badge {
+    font-size: 0.75em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    font-weight: bold;
+    display: inline-block;
+    vertical-align: middle;
+}
+.time-badge.new {
+    background: linear-gradient(45deg, #ff00cc, #333399);
+    color: #fff;
+    box-shadow: 0 0 5px rgba(255, 0, 204, 0.5);
+    animation: pulse 1.5s infinite;
+}
+.time-badge.normal {
+    background: #333;
+    color: #aaa;
+    border: 1px solid #444;
+}
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
 }
