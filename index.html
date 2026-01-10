@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>加密貨幣趨勢監控</title>
+    <title>市場異常監控看板</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,15 +19,15 @@
     </div>
 
     <div id="content">
-        <div class="loading">正在等待伺服器回傳分析結果...<br>(請稍候，首次載入可能需要幾秒鐘)</div>
+        <div class="loading">正在初始化系統...<br>(首次載入請稍候)</div>
     </div>
 
-    <div class="footer">Data provided by BotVsing Analysis Core<br>此網站資訊不構成投資建議</div>
+    <div class="footer">Data provided by BotVsing Analysis Core</div>
 
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <span class="close-btn">&times;</span>
-            <h2>監控通知設定</h2>
+            <h2>系統設定</h2>
             
             <div class="setting-item">
                 <label>桌面通知</label>
@@ -57,6 +57,15 @@
             <div class="setting-item">
                 <label>音量大小 <span id="volValue">50%</span></label>
                 <input type="range" id="volumeSlider" min="0" max="100" value="50">
+            </div>
+
+            <div class="setting-item" style="border-bottom: none; display: block;">
+                <label style="margin-bottom: 5px; display: block; color: #FFD700;">💎 VIP Access Key</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="apiKeyInput" placeholder="輸入訂閱金鑰..." class="key-input">
+                    <button id="saveKeyBtn" class="save-btn">驗證</button>
+                </div>
+                <div id="keyStatus" style="font-size: 0.8em; margin-top: 8px; color: #888; min-height: 1em;"></div>
             </div>
 
             <button id="testNotifyBtn" class="test-btn">測試通知與音效</button>
