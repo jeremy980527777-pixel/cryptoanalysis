@@ -1,5 +1,5 @@
 // 【重要】請確認這裡
-const API_URL = "https://tunefully-abstemious-shu.ngrok-free.dev/api/results";
+const API_URL = "http://207.148.106.160:8000/api/results";
 
 // 狀態變數
 let previousDataMap = { bull: [], bear: [] }; // 用來存上一輪的幣種名單
@@ -253,6 +253,7 @@ function loadSettings() {
     if (saved) settings = { ...settings, ...JSON.parse(saved) };
 
 }
+
 
 
 
