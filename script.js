@@ -1,7 +1,6 @@
 const API_URL = "https://api.delta-scope.net/api/results";
 
-// --- 🔒 新增：生成或讀取裝置身分證 (Device ID) ---
-// 這樣就算在同一個 WiFi 下，不同手機/電腦也會有不同的 ID
+// 1. 生成唯一裝置 ID
 let deviceId = localStorage.getItem("device_id");
 if (!deviceId) {
     deviceId = "dev_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -11,7 +10,8 @@ if (!deviceId) {
 // 狀態變數
 let previousDataMap = { bull: [], bear: [] }; 
 let isFirstLoad = true;
-let pollInterval = null;
+let pollInterval = null; // 數據更新計時器
+let pingInterval = null; // 🔥 心跳檢查計時器
 
 let settings = {
     notifications: false,
@@ -51,37 +51,49 @@ function playBell() {
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     setupModal();
-    
-    // 第一次載入，傳送 claim=true
-    updateDashboard(true);
-    
-    // 開始輪詢
+    updateDashboard(true); // 首次載入 (Claim)
     startPolling();
-
     setInterval(updateToastTimes, 60000);
 });
 
 function startPolling() {
+    // 1. 數據更新：每 30 秒一次 (大流量)
     if (pollInterval) clearInterval(pollInterval);
     pollInterval = setInterval(() => {
         updateDashboard(false);
-    }, 30000); // 30 秒更新一次
+    }, 30000);
+
+    // 2. 🔥 心跳偵測：每 3 秒一次 (極小流量) 🔥
+    if (pingInterval) clearInterval(pingInterval);
+    if (settings.apiKey) {
+        pingInterval = setInterval(() => {
+            checkAuthHeartbeat();
+        }, 3000);
+    }
+}
+
+// 專門用來檢查是否被踢出的輕量函式
+async function checkAuthHeartbeat() {
+    if (!settings.apiKey) return;
+    // 加上 mode=ping，告訴伺服器不要回傳數據，只要檢查權限
+    let url = `${API_URL}?key=${encodeURIComponent(settings.apiKey)}&device_id=${deviceId}&mode=ping`;
+
+    try {
+        const res = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
+        if (res.status === 409) {
+            handleKickOut(); // 被踢出
+        }
+    } catch (e) { } // 網路波動忽略
 }
 
 async function updateDashboard(isClaiming = false) {
     const statusText = document.getElementById('statusText');
     const dot = document.getElementById('dot');
     
-    let url = `${API_URL}?t=${new Date().getTime()}`;
-    
-    // 🔥 把裝置 ID 帶上去給伺服器檢查 🔥
-    url += `&device_id=${deviceId}`;
-
+    let url = `${API_URL}?t=${new Date().getTime()}&device_id=${deviceId}`;
     if (settings.apiKey) {
         url += `&key=${encodeURIComponent(settings.apiKey)}`;
-        if (isClaiming) {
-            url += `&claim=true`;
-        }
+        if (isClaiming) url += `&claim=true`;
     }
 
     try {
@@ -89,22 +101,8 @@ async function updateDashboard(isClaiming = false) {
             headers: new Headers({ "ngrok-skip-browser-warning": "true" }),
         });
 
-        // 處理被踢出 (409 Conflict)
         if (res.status === 409) {
-            if (pollInterval) {
-                clearInterval(pollInterval);
-                pollInterval = null;
-            }
-            statusText.innerText = '🚫 已斷線：帳號在其他裝置登入';
-            statusText.style.color = '#F44336';
-            dot.className = 'dot red';
-            dot.style.boxShadow = "none";
-            showToastAlert("連線中斷", "您的金鑰已在另一台裝置使用。<br>本機已停止更新。", "bear");
-            const keyStatus = document.getElementById("keyStatus");
-            if (keyStatus) {
-                keyStatus.innerText = "❌ 已被強制登出";
-                keyStatus.style.color = "#F44336";
-            }
+            handleKickOut();
             return;
         }
 
@@ -116,7 +114,6 @@ async function updateDashboard(isClaiming = false) {
             
             statusText.innerText = `${userLabel} | 更新: ${json.timestamp}`;
             statusText.style.color = '#666';
-
             dot.className = isVIP ? 'dot orange' : 'dot green';
             dot.style.boxShadow = isVIP ? "0 0 8px #FFD700" : "0 0 5px #4CAF50";
 
@@ -127,17 +124,21 @@ async function updateDashboard(isClaiming = false) {
             previousDataMap.bear = json.data.bear.map(i => i.name);
             isFirstLoad = false;
 
-            if (json.error) {
+            // 成功連上VIP，更新狀態字
+            if (isVIP) {
                 const keyStatus = document.getElementById("keyStatus");
                 if (keyStatus) {
-                    keyStatus.innerText = "❌ 金鑰無效，已切換至免費版";
-                    keyStatus.style.color = "#F44336";
-                }
-            } else if (isVIP) {
-                const keyStatus = document.getElementById("keyStatus");
-                 if (keyStatus) {
                     keyStatus.innerText = "✅ 已連線";
                     keyStatus.style.color = "#4CAF50";
+                }
+                // 如果是第一次連上VIP，啟動心跳檢查
+                if (!pingInterval) startPolling();
+            } else if (json.error) {
+                // key 錯誤
+                const keyStatus = document.getElementById("keyStatus");
+                if (keyStatus) {
+                    keyStatus.innerText = "❌ 金鑰無效";
+                    keyStatus.style.color = "#F44336";
                 }
             }
 
@@ -155,9 +156,34 @@ async function updateDashboard(isClaiming = false) {
     }
 }
 
+function handleKickOut() {
+    // 停止所有更新
+    if (pollInterval) clearInterval(pollInterval);
+    if (pingInterval) clearInterval(pingInterval);
+    
+    const statusText = document.getElementById('statusText');
+    const dot = document.getElementById('dot');
+
+    statusText.innerText = '🚫 已斷線：帳號在其他裝置登入';
+    statusText.style.color = '#F44336';
+    dot.className = 'dot red';
+    dot.style.boxShadow = "none";
+
+    const keyStatus = document.getElementById("keyStatus");
+    if (keyStatus) {
+        keyStatus.innerText = "❌ 已被強制登出";
+        keyStatus.style.color = "#F44336";
+    }
+
+    // 避免重複跳視窗
+    if (!document.getElementById("kickout-toast")) {
+        const t = showToastAlert("連線中斷", "您的金鑰已在另一台裝置使用。<br>本機已停止更新。", "bear");
+        if(t) t.id = "kickout-toast";
+    }
+}
+
 function checkDiffAndNotify(newData) {
     if (isFirstLoad) return; 
-
     const currBull = newData.bull.map(i => i.name);
     const currBear = newData.bear.map(i => i.name);
     const bullDiff = getDiff(previousDataMap.bull, currBull);
@@ -187,7 +213,6 @@ function checkDiffAndNotify(newData) {
     if (shouldNotify) {
         playBell();
         showToastAlert("市場名單變動", notifyDetails.join('<br>'), alertType);
-
         if (settings.notifications && Notification.permission === "granted") {
             const summary = notifyDetails.map(s => s.replace(/<[^>]*>/g, '')).join('\n');
             new Notification("Kynetic Alert", { body: summary });
@@ -206,21 +231,17 @@ function showToastAlert(title, htmlContent, type) {
     const container = document.getElementById('notificationContainer');
     const toast = document.createElement('div');
     const nowTimestamp = Date.now();
-    
     toast.setAttribute('data-timestamp', nowTimestamp);
     toast.className = `toast-alert ${type}`;
-    
     toast.innerHTML = `
         <div class="toast-header">
-            <div class="toast-title-group">
-                <span class="toast-title-text">${title}</span>
-                <span class="toast-time">剛剛</span>
-            </div>
+            <div class="toast-title-group"><span class="toast-title-text">${title}</span><span class="toast-time">剛剛</span></div>
             <span class="toast-close" onclick="this.closest('.toast-alert').remove()">✕</span>
         </div>
         <div class="toast-body">${htmlContent}</div>
     `;
     container.prepend(toast);
+    return toast;
 }
 
 function getRelativeTime(timestamp) {
@@ -239,9 +260,7 @@ function updateToastTimes() {
     toasts.forEach(toast => {
         const timestamp = parseInt(toast.getAttribute('data-timestamp'));
         const timeLabel = toast.querySelector('.toast-time');
-        if (timestamp && timeLabel) {
-            timeLabel.innerText = getRelativeTime(timestamp);
-        }
+        if (timestamp && timeLabel) timeLabel.innerText = getRelativeTime(timestamp);
     });
 }
 
@@ -274,13 +293,8 @@ function setupModal() {
     const close = document.getElementsByClassName("close-btn")[0];
     const apiKeyInput = document.getElementById("apiKeyInput");
     const saveKeyBtn = document.getElementById("saveKeyBtn");
-    const keyStatus = document.getElementById("keyStatus");
 
-    btn.onclick = () => {
-        modal.style.display = "block";
-        apiKeyInput.value = settings.apiKey || "";
-        updateKeyStatusUI();
-    };
+    btn.onclick = () => { modal.style.display = "block"; apiKeyInput.value = settings.apiKey || ""; };
     close.onclick = () => modal.style.display = "none";
     window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; }
 
@@ -314,28 +328,18 @@ function setupModal() {
         const val = apiKeyInput.value.trim();
         settings.apiKey = val;
         saveSettings();
-        saveKeyBtn.innerText = "已儲存";
-        setTimeout(() => saveKeyBtn.innerText = "驗證", 1000);
-        
-        // 驗證時，傳送 claim=true
-        updateDashboard(true);
-        startPolling(); 
+        saveKeyBtn.innerText = "驗證中...";
+        // 觸發一次 Claim
+        updateDashboard(true).then(() => {
+            saveKeyBtn.innerText = "驗證/儲存";
+            startPolling(); // 重啟輪詢，確保 Heartbeat 啟動
+        });
     };
 
     testBtn.onclick = () => {
         playBell();
-        showToastAlert("測試通知", "<span class='added'>🚀 多頭新增: BTC</span><br><span class='removed'>💨 空頭移除: ETH</span>", "mixed");
+        showToastAlert("測試通知", "<span class='added'>🚀 多頭新增: BTC</span>", "mixed");
     };
-
-    function updateKeyStatusUI() {
-        if (!settings.apiKey) {
-            keyStatus.innerText = "目前狀態: 免費版 (30分鐘延遲)";
-            keyStatus.style.color = "#888";
-        } else {
-            keyStatus.innerText = "已設定金鑰 (連線驗證中...)";
-            keyStatus.style.color = "#4CAF50";
-        }
-    }
 }
 
 function saveSettings() { localStorage.setItem('cryptoMonitorSettings', JSON.stringify(settings)); }
