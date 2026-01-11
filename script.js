@@ -1,5 +1,13 @@
 const API_URL = "https://api.delta-scope.net/api/results";
 
+// --- 🔒 新增：生成或讀取裝置身分證 (Device ID) ---
+// 這樣就算在同一個 WiFi 下，不同手機/電腦也會有不同的 ID
+let deviceId = localStorage.getItem("device_id");
+if (!deviceId) {
+    deviceId = "dev_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem("device_id", deviceId);
+}
+
 // 狀態變數
 let previousDataMap = { bull: [], bear: [] }; 
 let isFirstLoad = true;
@@ -57,7 +65,7 @@ function startPolling() {
     if (pollInterval) clearInterval(pollInterval);
     pollInterval = setInterval(() => {
         updateDashboard(false);
-    }, 30000); // ⚠️ 改為 30 秒一次，節省 Ngrok 流量
+    }, 30000); // 30 秒更新一次
 }
 
 async function updateDashboard(isClaiming = false) {
@@ -65,6 +73,10 @@ async function updateDashboard(isClaiming = false) {
     const dot = document.getElementById('dot');
     
     let url = `${API_URL}?t=${new Date().getTime()}`;
+    
+    // 🔥 把裝置 ID 帶上去給伺服器檢查 🔥
+    url += `&device_id=${deviceId}`;
+
     if (settings.apiKey) {
         url += `&key=${encodeURIComponent(settings.apiKey)}`;
         if (isClaiming) {
@@ -74,11 +86,10 @@ async function updateDashboard(isClaiming = false) {
 
     try {
         const res = await fetch(url, {
-            // 這行很重要，讓 Ngrok 知道你是瀏覽器
             headers: new Headers({ "ngrok-skip-browser-warning": "true" }),
         });
 
-        // 處理被踢出 (409)
+        // 處理被踢出 (409 Conflict)
         if (res.status === 409) {
             if (pollInterval) {
                 clearInterval(pollInterval);
@@ -121,6 +132,12 @@ async function updateDashboard(isClaiming = false) {
                 if (keyStatus) {
                     keyStatus.innerText = "❌ 金鑰無效，已切換至免費版";
                     keyStatus.style.color = "#F44336";
+                }
+            } else if (isVIP) {
+                const keyStatus = document.getElementById("keyStatus");
+                 if (keyStatus) {
+                    keyStatus.innerText = "✅ 已連線";
+                    keyStatus.style.color = "#4CAF50";
                 }
             }
 
@@ -300,6 +317,7 @@ function setupModal() {
         saveKeyBtn.innerText = "已儲存";
         setTimeout(() => saveKeyBtn.innerText = "驗證", 1000);
         
+        // 驗證時，傳送 claim=true
         updateDashboard(true);
         startPolling(); 
     };
