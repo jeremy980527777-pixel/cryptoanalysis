@@ -3,34 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>市場異常監控看板</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Delta Scope - 市場異常監控</title>
+    <link rel="stylesheet" href="style.css?v=3">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <button id="settingsBtn" class="settings-btn" title="設定">⚙️</button>
+    <header>
+        <div class="header-content">
+            <div class="logo-area">
+                <h1>Delta Scope</h1>
+                <p class="subtitle">Real-time Crypto Anomaly Monitor</p>
+            </div>
+            
+            <div class="icon-group">
+                <a href="https://www.threads.net/@你的Threads帳號" target="_blank" class="icon-link" title="Follow on Threads">
+                    <img src="threads.png" alt="Threads">
+                </a>
 
-    <h1>市場異常監控看板</h1>
-    <div class="subtitle">Real-time Crypto Anomaly Monitor</div>
+                <a href="https://discord.gg/你的Discord邀請碼" target="_blank" class="icon-link" title="Join Discord">
+                    <img src="discord.png" alt="Discord">
+                </a>
 
-    <div class="status-bar">
-        <span id="dot" class="dot"></span>
-        <span id="statusText">正在連線至數據中心...</span>
+                <button id="settingsBtn" title="設定">⚙️</button>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div id="dot" class="dot red"></div>
+            <span id="statusText">正在連線...</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="notificationContainer"></div>
+        <div id="content" class="dashboard-grid">
+            </div>
     </div>
-
-    <div id="content">
-        <div class="loading">正在初始化系統...<br>(首次載入請稍候)</div>
-    </div>
-
-    <div class="footer">Data provided by BotVsing Analysis Core</div>
 
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <span class="close-btn">&times;</span>
-            <h2>系統設定</h2>
+            <h2>⚙️ 監控設定</h2>
             
             <div class="setting-item">
-                <label>桌面通知</label>
+                <label>🔔 桌面通知</label>
                 <label class="switch">
                     <input type="checkbox" id="notifyToggle">
                     <span class="slider round"></span>
@@ -38,7 +55,7 @@
             </div>
 
             <div class="setting-item">
-                <label>提示音效</label>
+                <label>🔊 提示音效</label>
                 <label class="switch">
                     <input type="checkbox" id="soundToggle">
                     <span class="slider round"></span>
@@ -46,35 +63,36 @@
             </div>
 
             <div class="setting-item">
-                <label>監控方向</label>
-                <select id="directionSelect" class="settings-select">
-                    <option value="all">全部監控</option>
-                    <option value="bull">只看多頭</option>
-                    <option value="bear">只看空頭</option>
-                </select>
-            </div>
-
-            <div class="setting-item">
-                <label>音量大小 <span id="volValue">50%</span></label>
+                <label>📢 音量大小 <span id="volValue">50%</span></label>
                 <input type="range" id="volumeSlider" min="0" max="100" value="50">
             </div>
 
-            <div class="setting-item" style="border-bottom: none; display: block;">
-                <label style="margin-bottom: 5px; display: block; color: #FFD700;">💎 VIP Access Key</label>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="apiKeyInput" placeholder="輸入訂閱金鑰..." class="key-input">
-                    <button id="saveKeyBtn" class="save-btn">驗證</button>
-                </div>
-                <div id="keyStatus" style="font-size: 0.8em; margin-top: 8px; color: #888; min-height: 1em;"></div>
+            <div class="setting-item">
+                <label>👀 監控方向</label>
+                <select id="directionSelect">
+                    <option value="all">全部監控 (多+空)</option>
+                    <option value="bull">只看多頭 (Bull)</option>
+                    <option value="bear">只看空頭 (Bear)</option>
+                </select>
             </div>
 
-            <button id="testNotifyBtn" class="test-btn">測試通知與音效</button>
+            <hr>
+
+            <div class="setting-item column">
+                <label>🔑 專屬金鑰 (License Key)</label>
+                <input type="text" id="apiKeyInput" placeholder="輸入您的 VIP Key...">
+                <p id="keyStatus" class="status-small">目前狀態: 檢查中...</p>
+                <button id="saveKeyBtn" class="action-btn">驗證並儲存</button>
+            </div>
+
+            <hr>
+            
+            <div class="modal-footer">
+                <button id="testNotifyBtn" class="secondary-btn">測試通知音效</button>
+            </div>
         </div>
     </div>
 
-    <div id="notificationContainer" class="notification-container"></div>
-
-    <script src="script.js"></script>
+    <script src="script.js?v=3"></script>
 </body>
-
 </html>
