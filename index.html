@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delta Scope - 市場異常監控</title>
+    
+    <link rel="icon" href="delta-scope.png" type="image/png">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="style.css?v=11">
+    
+    <link rel="stylesheet" href="style.css?v=final_fix">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -13,17 +17,22 @@
     <header>
         <div class="header-content">
             <div class="logo-area">
-                <h1>Delta Scope</h1>
-                <p class="subtitle">Real-time Crypto Anomaly Monitor</p>
+                <img src="delta-scope.png" alt="Delta Scope Logo" class="main-logo">
+                <div class="logo-text">
+                    <h1>Delta Scope</h1>
+                    <p class="subtitle">Real-time Crypto Anomaly Monitor</p>
+                </div>
             </div>
             
             <div class="icon-group">
-                <a href="https://www.threads.net/@你的Threads帳號" target="_blank" class="icon-link">
+                <a href="https://www.threads.net/@je._.ffk?hl=zh-tw" target="_blank" class="icon-link" title="Follow on Threads">
                     <img src="threads.png" alt="Threads">
                 </a>
-                <a href="https://discord.gg/你的Discord邀請碼" target="_blank" class="icon-link">
+
+                <a href="https://discord.gg/NTEMKmQMQS" target="_blank" class="icon-link" title="Join Discord">
                     <img src="discord1.png" alt="Discord">
                 </a>
+
                 <button id="settingsBtn" title="設定">⚙️</button>
             </div>
         </div>
@@ -100,6 +109,8 @@
         </div>
     </div>
 
-    <script src="script.js?v=11"></script>
+    <script src="script.js?v=final_fix"></script>
+    
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"fc6d602569244ae8924355a759295486","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
