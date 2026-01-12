@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delta Scope - 市場異常監控</title>
-    <link rel="stylesheet" href="style.css?v=4">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css?v=11">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -17,14 +18,12 @@
             </div>
             
             <div class="icon-group">
-                <a href="https://www.threads.net/@你的Threads帳號" target="_blank" class="icon-link" title="Follow on Threads">
+                <a href="https://www.threads.net/@你的Threads帳號" target="_blank" class="icon-link">
                     <img src="threads.png" alt="Threads">
                 </a>
-
-                <a href="https://discord.gg/你的Discord邀請碼" target="_blank" class="icon-link" title="Join Discord">
+                <a href="https://discord.gg/你的Discord邀請碼" target="_blank" class="icon-link">
                     <img src="discord1.png" alt="Discord">
                 </a>
-
                 <button id="settingsBtn" title="設定">⚙️</button>
             </div>
         </div>
@@ -83,16 +82,24 @@
                 <p id="keyStatus" class="status-small">目前狀態: 檢查中...</p>
                 <button id="saveKeyBtn" class="action-btn">驗證並儲存</button>
             </div>
-
             <hr>
-            
             <div class="modal-footer">
                 <button id="testNotifyBtn" class="secondary-btn">測試通知音效</button>
             </div>
         </div>
     </div>
 
-    <script src="script.js?v=4"></script>
+    <div id="chartModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeChartModal()">&times;</span>
+            <h2 id="chartTitle">TOKEN 分析圖表</h2>
+            
+            <div style="position: relative; height:300px; width:100%">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=11"></script>
 </body>
 </html>
-
