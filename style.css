@@ -24,14 +24,36 @@ header {
     padding: 10px 0;
 }
 
-h1 {
+/* 🔥 新增：Logo 區域排版 (圖片+文字並排) */
+.logo-area {
+    display: flex;           
+    align-items: center;     
+    justify-content: center; 
+    gap: 15px;               
+}
+
+/* 🔥 新增：Logo 圖片設定 */
+.main-logo {
+    width: 60px;             /* Logo 大小 */
+    height: auto;
+    border-radius: 10px;     /* 稍微圓角 */
+}
+
+/* 🔥 新增：文字區域 (確保電腦版文字靠左) */
+.logo-text {
+    text-align: left;        
+}
+
+/* 針對 Logo 旁邊的標題設定 */
+.logo-text h1 {
     margin: 0;
     font-size: 2.5rem;
     font-weight: 700;
     color: #ffffff;
+    line-height: 1.1;
 }
 
-.subtitle {
+.logo-text .subtitle {
     margin: 5px 0 0;
     color: #888;
     font-size: 0.9rem;
@@ -62,7 +84,6 @@ h1 {
     height: 28px;
     opacity: 0.8;          /* 稍微增加不透明度 */
     transition: opacity 0.3s;
-    /* filter: invert(1);  <--- 確保這行被移除，顯示原色 */
 }
 
 .icon-link:hover img {
@@ -88,15 +109,6 @@ h1 {
 #settingsBtn:hover {
     opacity: 1;
     transform: rotate(30deg);
-}
-
-/* 手機版 RWD 調整 */
-@media (max-width: 600px) {
-    .icon-group {
-        position: static;
-        justify-content: center;
-        margin-top: 15px;
-    }
 }
 
 /* --- 狀態顯示 --- */
@@ -318,3 +330,26 @@ input:checked + .slider:before { transform: translateX(26px); }
 
 hr { border: 0; border-top: 1px solid #444; margin: 20px 0; }
 .status-small { font-size: 0.85em; margin: 0; }
+
+/* --- 🔥 手機版 RWD 調整 🔥 --- */
+@media (max-width: 600px) {
+    .icon-group {
+        position: static;
+        justify-content: center;
+        margin-top: 15px;
+    }
+
+    /* 🔥 新增：手機版 Logo 調整為上下排列並置中 */
+    .logo-area {
+        flex-direction: column; 
+        gap: 10px;
+    }
+    
+    .logo-text {
+        text-align: center;
+    }
+    
+    .main-logo {
+        width: 80px; /* 手機上 Logo 可以稍微大一點 */
+    }
+}
