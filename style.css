@@ -62,7 +62,7 @@ h1 {
     height: 28px;
     opacity: 0.8;          /* 稍微增加不透明度 */
     transition: opacity 0.3s;
-    /* filter: invert(1);  <--- ❌ 這一行被我刪除了，這樣才會顯示原色！ */
+    /* filter: invert(1);  <--- 確保這行被移除，顯示原色 */
 }
 
 .icon-link:hover img {
@@ -188,21 +188,30 @@ li:last-child { border-bottom: none; }
 
 .fire { color: #FF5722; font-weight: bold; }
 
-/* --- 彈出通知 Toast --- */
+/* --- 🔥 彈出通知 Toast (右下角固定版) 🔥 --- */
 #notificationContainer {
-    margin-bottom: 20px;
+    position: fixed;       /* 固定定位 */
+    bottom: 20px;          /* 靠下 20px */
+    right: 20px;           /* 靠右 20px */
+    width: 320px;          
+    z-index: 9999;         /* 最上層 */
+    display: flex;
+    flex-direction: column; 
+    gap: 10px;             
 }
 
 .toast-alert {
     background: #252525;
     border-left: 5px solid #888;
     padding: 15px;
-    margin-bottom: 10px;
     border-radius: 4px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
-    animation: slideIn 0.3s ease-out;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    /* 使用右側滑入動畫，帶一點彈性 (cubic-bezier) */
+    animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
+    color: #fff;
 }
+
 .toast-alert.bull { border-left-color: #4CAF50; }
 .toast-alert.bear { border-left-color: #F44336; }
 
@@ -220,9 +229,16 @@ li:last-child { border-bottom: none; }
 .toast-body span.added { color: #4CAF50; }
 .toast-body span.removed { color: #F44336; }
 
-@keyframes slideIn {
-    from { transform: translateY(-20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+/* 定義右側滑入動畫 */
+@keyframes slideInRight {
+    from { 
+        transform: translateX(100%); /* 從畫面右邊外面開始 */
+        opacity: 0; 
+    }
+    to { 
+        transform: translateX(0);    /* 回到原位 */
+        opacity: 1; 
+    }
 }
 
 /* --- 設定 Modal --- */
