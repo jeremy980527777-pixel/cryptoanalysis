@@ -1,344 +1,349 @@
-// --- 設定變數 ---
-const API_URL = "https://delta-scope.net/api/results"; 
-let notifyEnabled = false;
-let soundEnabled = false;
-let volumeLevel = 0.5;
-let filterDirection = "all"; 
-let userKey = localStorage.getItem("licenseKey") || "";
-let deviceId = localStorage.getItem("deviceId");
-let processedCoins = new Set();
-let myChart = null; // 🔥 圖表實例
+const API_URL = "https://api.delta-scope.net/api/results";
 
+// 1. 生成唯一裝置 ID
+let deviceId = localStorage.getItem("device_id");
 if (!deviceId) {
-    deviceId = "dev_" + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem("deviceId", deviceId);
+    deviceId = "dev_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem("device_id", deviceId);
 }
 
-// --- DOM 元素 ---
-const contentDiv = document.getElementById("content");
-const dot = document.getElementById("dot");
-const statusText = document.getElementById("statusText");
-const notifContainer = document.getElementById("notificationContainer");
-const settingsBtn = document.getElementById("settingsBtn");
-const settingsModal = document.getElementById("settingsModal");
-const closeBtns = document.getElementsByClassName("close-btn");
-const notifyToggle = document.getElementById("notifyToggle");
-const soundToggle = document.getElementById("soundToggle");
-const volumeSlider = document.getElementById("volumeSlider");
-const volValue = document.getElementById("volValue");
-const directionSelect = document.getElementById("directionSelect");
-const apiKeyInput = document.getElementById("apiKeyInput");
-const saveKeyBtn = document.getElementById("saveKeyBtn");
-const keyStatus = document.getElementById("keyStatus");
-const testNotifyBtn = document.getElementById("testNotifyBtn");
-const chartModal = document.getElementById("chartModal"); // 🔥 圖表視窗
+// 狀態變數
+let previousDataMap = { bull: [], bear: [] }; 
+let isFirstLoad = true;
+let pollInterval = null; // 數據更新計時器
+let pingInterval = null; // 🔥 心跳檢查計時器
 
-// --- 初始化載入設定 ---
-if(localStorage.getItem("notify") === "true") { notifyEnabled = true; notifyToggle.checked = true; }
-if(localStorage.getItem("sound") === "true") { soundEnabled = true; soundToggle.checked = true; }
-if(localStorage.getItem("volume")) { 
-    volumeLevel = parseFloat(localStorage.getItem("volume"));
-    volumeSlider.value = volumeLevel * 100;
-    volValue.innerText = Math.round(volumeLevel * 100) + "%";
+let settings = {
+    notifications: false,
+    sound: false,
+    volume: 0.5,
+    direction: 'all',
+    apiKey: ""
+};
+
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+function playBell() {
+    if (!settings.sound) return;
+    if (audioContext.state === 'suspended') audioContext.resume();
+    const now = audioContext.currentTime;
+    const vol = settings.volume;
+
+    const osc1 = audioContext.createOscillator();
+    const gain1 = audioContext.createGain();
+    osc1.connect(gain1); gain1.connect(audioContext.destination);
+    osc1.type = 'sine'; osc1.frequency.setValueAtTime(1100, now);
+    gain1.gain.setValueAtTime(0, now);
+    gain1.gain.linearRampToValueAtTime(vol, now + 0.01);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+    osc1.start(now); osc1.stop(now + 1.5);
+
+    const osc2 = audioContext.createOscillator();
+    const gain2 = audioContext.createGain();
+    osc2.connect(gain2); gain2.connect(audioContext.destination);
+    osc2.type = 'sine'; osc2.frequency.setValueAtTime(1650, now);
+    gain2.gain.setValueAtTime(0, now);
+    gain2.gain.linearRampToValueAtTime(vol * 0.5, now + 0.01);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc2.start(now); osc2.stop(now + 0.5);
 }
-if(localStorage.getItem("filter")) {
-    filterDirection = localStorage.getItem("filter");
-    directionSelect.value = filterDirection;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSettings();
+    setupModal();
+    updateDashboard(true); // 首次載入 (Claim)
+    startPolling();
+    setInterval(updateToastTimes, 60000);
+});
+
+function startPolling() {
+    // 1. 數據更新：每 30 秒一次 (大流量)
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(() => {
+        updateDashboard(false);
+    }, 30000);
+
+    // 2. 🔥 心跳偵測：每 3 秒一次 (極小流量) 🔥
+    if (pingInterval) clearInterval(pingInterval);
+    if (settings.apiKey) {
+        pingInterval = setInterval(() => {
+            checkAuthHeartbeat();
+        }, 3000);
+    }
 }
-apiKeyInput.value = userKey;
 
-// --- 請求權限 ---
-if (Notification.permission !== "granted") Notification.requestPermission();
+// 專門用來檢查是否被踢出的輕量函式
+async function checkAuthHeartbeat() {
+    if (!settings.apiKey) return;
+    // 加上 mode=ping，告訴伺服器不要回傳數據，只要檢查權限
+    let url = `${API_URL}?key=${encodeURIComponent(settings.apiKey)}&device_id=${deviceId}&mode=ping`;
 
-// --- 音效 ---
-const alertAudio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
-
-// --- 核心函式 ---
-async function fetchData() {
     try {
-        const url = `${API_URL}?key=${userKey}&device_id=${deviceId}`;
-        const resp = await fetch(url);
-        const json = await resp.json();
+        const res = await fetch(url, { headers: { "ngrok-skip-browser-warning": "true" } });
+        if (res.status === 409) {
+            handleKickOut(); // 被踢出
+        }
+    } catch (e) { } // 網路波動忽略
+}
 
-        if (json.type === "Invalid Key") {
-            keyStatus.innerText = "⚠️ 金鑰無效或過期";
-            keyStatus.style.color = "#F44336";
-        } else if (json.type === "Premium") {
-            keyStatus.innerText = `✅ VIP: ${json.user}`;
-            keyStatus.style.color = "#4CAF50";
-        } else {
-            keyStatus.innerText = "👤 訪客模式 (延遲數據)";
-            keyStatus.style.color = "#888";
+async function updateDashboard(isClaiming = false) {
+    const statusText = document.getElementById('statusText');
+    const dot = document.getElementById('dot');
+    
+    let url = `${API_URL}?t=${new Date().getTime()}&device_id=${deviceId}`;
+    if (settings.apiKey) {
+        url += `&key=${encodeURIComponent(settings.apiKey)}`;
+        if (isClaiming) url += `&claim=true`;
+    }
+
+    try {
+        const res = await fetch(url, {
+            headers: new Headers({ "ngrok-skip-browser-warning": "true" }),
+        });
+
+        if (res.status === 409) {
+            handleKickOut();
+            return;
         }
 
-        updateUI(json.data, json.timestamp, json.user);
+        const json = await res.json();
         
-        dot.className = "dot green";
-        statusText.innerText = "連線正常";
-    } catch (e) {
-        console.error(e);
-        dot.className = "dot red";
-        statusText.innerText = "連線中斷";
-    }
-}
+        if (json.status === 'success') {
+            const isVIP = json.type === 'Premium';
+            const userLabel = isVIP ? `👑 VIP (${json.user})` : 'Guest (30m延遲)';
+            
+            statusText.innerText = `${userLabel} | 更新: ${json.timestamp}`;
+            statusText.style.color = '#666';
+            dot.className = isVIP ? 'dot orange' : 'dot green';
+            dot.style.boxShadow = isVIP ? "0 0 8px #FFD700" : "0 0 5px #4CAF50";
 
-function updateUI(data, timestamp, user) {
-    contentDiv.innerHTML = "";
-    
-    // 顯示 VIP 狀態列
-    const metaDiv = document.createElement("div");
-    metaDiv.style.gridColumn = "1 / -1";
-    metaDiv.style.textAlign = "center";
-    metaDiv.style.marginBottom = "10px";
-    metaDiv.style.color = "#666";
-    metaDiv.innerHTML = user ? `👑 VIP (${user}) | 更新: ${timestamp}` : `👤 Guest | 更新: ${timestamp}`;
-    contentDiv.appendChild(metaDiv);
+            renderLists(json.data);
+            checkDiffAndNotify(json.data);
+            
+            previousDataMap.bull = json.data.bull.map(i => i.name);
+            previousDataMap.bear = json.data.bear.map(i => i.name);
+            isFirstLoad = false;
 
-    let currentWinners = new Set();
-
-    if (filterDirection === "all" || filterDirection === "bull") {
-        createSection("🚀 多頭異常", data.bull, "bull", currentWinners);
-    }
-    if (filterDirection === "all" || filterDirection === "bear") {
-        createSection("📉 空頭異常", data.bear, "bear", currentWinners);
-    }
-    createSection("⚖️ 等待突破", data.neut, "neut", currentWinners);
-
-    checkNewListings(currentWinners, data);
-}
-
-function createSection(title, list, type, currentWinners) {
-    const section = document.createElement("div");
-    section.className = `section ${type}`;
-    
-    const h3 = document.createElement("h3");
-    h3.innerText = title;
-    section.appendChild(h3);
-
-    const ul = document.createElement("ul");
-    if (list && list.length > 0) {
-        list.forEach(item => {
-            ul.appendChild(createListItem(item, type));
-            currentWinners.add(item.name);
-        });
-    } else {
-        const emptyLi = document.createElement("li");
-        emptyLi.innerText = "暫無數據";
-        emptyLi.style.color = "#666";
-        emptyLi.style.justifyContent = "center";
-        ul.appendChild(emptyLi);
-    }
-    section.appendChild(ul);
-    contentDiv.appendChild(section);
-}
-
-function createListItem(item, type) {
-    const li = document.createElement("li");
-    
-    // 🔥 新增：點擊事件，開啟圖表 🔥
-    li.style.cursor = "pointer";
-    li.title = "點擊查看趨勢圖";
-    li.onclick = function() {
-        openChartModal(item.name, item.trend, type);
-    };
-
-    let scoreClass = "badge score-badge";
-    if (item.score >= 80) scoreClass += " fire";
-    
-    li.innerHTML = `
-        <span class="coin-name">${item.name}</span>
-        <div class="badges">
-            <span class="badge msg-badge">${item.msg}</span>
-            <span class="${scoreClass}">${item.score}</span>
-            <span class="badge msg-badge">⏱ ${item.time_on_board}</span>
-        </div>
-    `;
-    return li;
-}
-
-// --- 🔥 圖表與視窗控制邏輯 🔥 ---
-
-function openChartModal(coinName, trendData, type) {
-    if (!trendData || trendData.length === 0) {
-        // 如果沒有歷史數據 (剛重啟)，造一個假數據避免報錯
-        trendData = [0]; 
-    }
-
-    const title = document.getElementById("chartTitle");
-    const ctx = document.getElementById("trendChart").getContext("2d");
-
-    // 設定標題
-    title.innerText = `${coinName} - 近1小時異常分趨勢`;
-    chartModal.style.display = "block";
-
-    // 銷毀舊圖表
-    if (myChart) myChart.destroy();
-
-    // 設定顏色
-    let color = type === 'bear' ? '#F44336' : '#4CAF50';
-    let bgColor = type === 'bear' ? 'rgba(244, 67, 54, 0.2)' : 'rgba(76, 175, 80, 0.2)';
-
-    // 產生 X 軸時間標籤
-    const labels = trendData.map((_, index) => {
-        const mins = (trendData.length - 1 - index) * 5;
-        return mins === 0 ? 'Now' : `-${mins}m`;
-    });
-
-    // 建立新圖表
-    myChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: '異常分數 (Score)',
-                data: trendData,
-                borderColor: color,
-                backgroundColor: bgColor,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.3, // 線條平滑度
-                pointRadius: 4,
-                pointBackgroundColor: color
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index',
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    grid: { color: '#333' },
-                    ticks: { color: '#aaa' }
-                },
-                x: {
-                    grid: { color: '#333' },
-                    ticks: { color: '#aaa' }
+            // 成功連上VIP，更新狀態字
+            if (isVIP) {
+                const keyStatus = document.getElementById("keyStatus");
+                if (keyStatus) {
+                    keyStatus.innerText = "✅ 已連線";
+                    keyStatus.style.color = "#4CAF50";
                 }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff'
+                // 如果是第一次連上VIP，啟動心跳檢查
+                if (!pingInterval) startPolling();
+            } else if (json.error) {
+                // key 錯誤
+                const keyStatus = document.getElementById("keyStatus");
+                if (keyStatus) {
+                    keyStatus.innerText = "❌ 金鑰無效";
+                    keyStatus.style.color = "#F44336";
                 }
             }
+
+        } else if (json.status === 'waiting') {
+            statusText.innerText = '伺服器正在運算中...';
+            dot.className = 'dot orange';
+        } else {
+            statusText.innerText = '伺服器錯誤';
+            dot.className = 'dot red';
         }
-    });
+    } catch (e) {
+        console.error(e);
+        statusText.innerText = '無法連線';
+        dot.className = 'dot red';
+    }
 }
 
-// 關閉圖表視窗
-window.closeChartModal = function() {
-    chartModal.style.display = "none";
-}
-
-// --- 通知邏輯 ---
-function checkNewListings(currentWinners, data) {
-    // 檢查是否有新上榜 (多頭或空頭)
-    // 這裡只簡單實作 Toast 通知，你可以保留原本的複雜邏輯
-    currentWinners.forEach(coin => {
-        if (!processedCoins.has(coin)) {
-            // 找出它是多還是空
-            let type = "neut";
-            let listName = "";
-            
-            // 檢查它屬於哪個榜單
-            if (data.bull.some(x => x.name === coin)) { type = "bull"; listName = "多頭新增"; }
-            else if (data.bear.some(x => x.name === coin)) { type = "bear"; listName = "空頭新增"; }
-            else { return; } // 觀察區不通知
-
-            showToast(listName, coin, type);
-            processedCoins.add(coin);
-        }
-    });
-}
-
-function showToast(title, message, type) {
-    if (!notifyEnabled) return;
+function handleKickOut() {
+    // 停止所有更新
+    if (pollInterval) clearInterval(pollInterval);
+    if (pingInterval) clearInterval(pingInterval);
     
-    // 播放音效
-    if (soundEnabled) {
-        alertAudio.volume = volumeLevel;
-        alertAudio.play().catch(e => console.log("Audio play failed", e));
+    const statusText = document.getElementById('statusText');
+    const dot = document.getElementById('dot');
+
+    statusText.innerText = '🚫 已斷線：帳號在其他裝置登入';
+    statusText.style.color = '#F44336';
+    dot.className = 'dot red';
+    dot.style.boxShadow = "none";
+
+    const keyStatus = document.getElementById("keyStatus");
+    if (keyStatus) {
+        keyStatus.innerText = "❌ 已被強制登出";
+        keyStatus.style.color = "#F44336";
     }
 
-    // 瀏覽器通知
-    if (document.hidden) {
-        new Notification(title, { body: message, icon: "favicon.ico" });
+    // 避免重複跳視窗
+    if (!document.getElementById("kickout-toast")) {
+        const t = showToastAlert("連線中斷", "您的金鑰已在另一台裝置使用。<br>本機已停止更新。", "bear");
+        if(t) t.id = "kickout-toast";
+    }
+}
+
+function checkDiffAndNotify(newData) {
+    if (isFirstLoad) return; 
+    const currBull = newData.bull.map(i => i.name);
+    const currBear = newData.bear.map(i => i.name);
+    const bullDiff = getDiff(previousDataMap.bull, currBull);
+    const bearDiff = getDiff(previousDataMap.bear, currBear);
+
+    let shouldNotify = false;
+    let notifyDetails = [];
+    let alertType = 'mixed';
+
+    const watchBull = settings.direction === 'all' || settings.direction === 'bull';
+    const watchBear = settings.direction === 'all' || settings.direction === 'bear';
+
+    if (watchBull && (bullDiff.added.length > 0 || bullDiff.removed.length > 0)) {
+        shouldNotify = true;
+        if (bullDiff.added.length > 0) notifyDetails.push(`<span class="added">🚀 多頭新增: ${bullDiff.added.join(', ')}</span>`);
+        if (bullDiff.removed.length > 0) notifyDetails.push(`<span class="removed">💨 多頭移除: ${bullDiff.removed.join(', ')}</span>`);
+        alertType = 'bull';
     }
 
-    // 網頁內通知
-    const toast = document.createElement("div");
+    if (watchBear && (bearDiff.added.length > 0 || bearDiff.removed.length > 0)) {
+        shouldNotify = true;
+        if (bearDiff.added.length > 0) notifyDetails.push(`<span class="added">📉 空頭新增: ${bearDiff.added.join(', ')}</span>`);
+        if (bearDiff.removed.length > 0) notifyDetails.push(`<span class="removed">💨 空頭移除: ${bearDiff.removed.join(', ')}</span>`);
+        alertType = (watchBull && (bullDiff.added.length || bullDiff.removed.length)) ? 'mixed' : 'bear';
+    }
+
+    if (shouldNotify) {
+        playBell();
+        showToastAlert("市場名單變動", notifyDetails.join('<br>'), alertType);
+        if (settings.notifications && Notification.permission === "granted") {
+            const summary = notifyDetails.map(s => s.replace(/<[^>]*>/g, '')).join('\n');
+            new Notification("Kynetic Alert", { body: summary });
+        }
+    }
+}
+
+function getDiff(prev, curr) {
+    return {
+        added: curr.filter(x => !prev.includes(x)),
+        removed: prev.filter(x => !curr.includes(x))
+    };
+}
+
+function showToastAlert(title, htmlContent, type) {
+    const container = document.getElementById('notificationContainer');
+    const toast = document.createElement('div');
+    const nowTimestamp = Date.now();
+    toast.setAttribute('data-timestamp', nowTimestamp);
     toast.className = `toast-alert ${type}`;
     toast.innerHTML = `
         <div class="toast-header">
-            <span class="toast-title-text">${title}</span>
-            <span class="toast-close" onclick="this.parentElement.parentElement.remove()">×</span>
+            <div class="toast-title-group"><span class="toast-title-text">${title}</span><span class="toast-time">剛剛</span></div>
+            <span class="toast-close" onclick="this.closest('.toast-alert').remove()">✕</span>
         </div>
-        <div class="toast-body">
-            <span class="coin-name">${message}</span>
-        </div>
+        <div class="toast-body">${htmlContent}</div>
     `;
-    notifContainer.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.opacity = "0";
-        setTimeout(() => toast.remove(), 300);
-    }, 5000);
+    container.prepend(toast);
+    return toast;
 }
 
-// --- 事件監聽 ---
-settingsBtn.onclick = () => settingsModal.style.display = "block";
-for (let btn of closeBtns) {
-    btn.onclick = function() {
-        settingsModal.style.display = "none";
-        chartModal.style.display = "none"; // 讓關閉按鈕也能關圖表
-    }
-}
-window.onclick = (event) => {
-    if (event.target == settingsModal) settingsModal.style.display = "none";
-    if (event.target == chartModal) chartModal.style.display = "none";
+function getRelativeTime(timestamp) {
+    const now = Date.now();
+    const diffInSeconds = Math.floor((now - timestamp) / 1000);
+    if (diffInSeconds < 60) return "剛剛";
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `${diffInMinutes} 分鐘前`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} 小時前`;
+    return "超過 1 天";
 }
 
-notifyToggle.onchange = () => {
-    notifyEnabled = notifyToggle.checked;
-    localStorage.setItem("notify", notifyEnabled);
-    if (notifyEnabled) Notification.requestPermission();
-}
-soundToggle.onchange = () => {
-    soundEnabled = soundToggle.checked;
-    localStorage.setItem("sound", soundEnabled);
-}
-volumeSlider.oninput = () => {
-    volumeLevel = volumeSlider.value / 100;
-    volValue.innerText = volumeSlider.value + "%";
-    localStorage.setItem("volume", volumeLevel);
-}
-directionSelect.onchange = () => {
-    filterDirection = directionSelect.value;
-    localStorage.setItem("filter", filterDirection);
-    fetchData(); 
-}
-saveKeyBtn.onclick = () => {
-    userKey = apiKeyInput.value.trim();
-    localStorage.setItem("licenseKey", userKey);
-    keyStatus.innerText = "🔄 驗證中...";
-    fetchData(); 
-}
-testNotifyBtn.onclick = () => {
-    showToast("測試通知", "這是一條測試訊息", "bull");
+function updateToastTimes() {
+    const toasts = document.querySelectorAll('.toast-alert');
+    toasts.forEach(toast => {
+        const timestamp = parseInt(toast.getAttribute('data-timestamp'));
+        const timeLabel = toast.querySelector('.toast-time');
+        if (timestamp && timeLabel) timeLabel.innerText = getRelativeTime(timestamp);
+    });
 }
 
-// --- 啟動 ---
-setInterval(fetchData, 5000);
-// 心跳包
-setInterval(() => {
-    fetch(`${API_URL}?key=${userKey}&device_id=${deviceId}&mode=ping`).catch(()=>{});
-}, 60000);
+function renderLists(data) {
+    const container = document.getElementById('content');
+    container.innerHTML = ''; 
+    const createSection = (title, list, typeClass, icon) => {
+        const sec = document.createElement('div');
+        sec.className = `section ${typeClass}`;
+        let listHtml = list.length === 0 ? '<div class="empty-msg">無</div>' : '<ul>' + list.map(item => `
+            <li>
+                <span class="coin-name">${item.name}</span>
+                <div class="badges">
+                    <span class="badge msg-badge">${item.msg.replace('爆量','<span class="fire">🔥爆量</span>')}</span>
+                    <span class="badge score-badge">${item.score}</span>
+                    <span class="badge time-badge" style="background:#444;color:#ddd;font-size:0.8em;padding:4px 8px;">⏱ ${item.time_on_board || "New"}</span>
+                </div>
+            </li>`).join('') + '</ul>';
+        sec.innerHTML = `<h3>${icon} ${title}</h3>${listHtml}`;
+        return sec;
+    };
+    container.appendChild(createSection('多頭異常', data.bull, 'bull', '🚀'));
+    container.appendChild(createSection('空頭異常', data.bear, 'bear', '📉'));
+    container.appendChild(createSection('等待突破', data.neut, 'neut', '⚖️'));
+}
 
-fetchData();
+function setupModal() {
+    const modal = document.getElementById("settingsModal");
+    const btn = document.getElementById("settingsBtn");
+    const close = document.getElementsByClassName("close-btn")[0];
+    const apiKeyInput = document.getElementById("apiKeyInput");
+    const saveKeyBtn = document.getElementById("saveKeyBtn");
+
+    btn.onclick = () => { modal.style.display = "block"; apiKeyInput.value = settings.apiKey || ""; };
+    close.onclick = () => modal.style.display = "none";
+    window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; }
+
+    const notifyToggle = document.getElementById("notifyToggle");
+    const soundToggle = document.getElementById("soundToggle");
+    const directionSelect = document.getElementById("directionSelect");
+    const volSlider = document.getElementById("volumeSlider");
+    const volText = document.getElementById("volValue");
+    const testBtn = document.getElementById("testNotifyBtn");
+
+    notifyToggle.checked = settings.notifications;
+    soundToggle.checked = settings.sound;
+    directionSelect.value = settings.direction;
+    volSlider.value = settings.volume * 100;
+    volText.innerText = Math.round(settings.volume * 100) + "%";
+
+    notifyToggle.onchange = () => {
+        settings.notifications = notifyToggle.checked;
+        if (settings.notifications && Notification.permission !== "granted") Notification.requestPermission();
+        saveSettings();
+    };
+    soundToggle.onchange = () => { settings.sound = soundToggle.checked; saveSettings(); };
+    directionSelect.onchange = () => { settings.direction = directionSelect.value; saveSettings(); };
+    volSlider.oninput = () => {
+        settings.volume = volSlider.value / 100;
+        volText.innerText = volSlider.value + "%";
+        saveSettings();
+    };
+
+    saveKeyBtn.onclick = () => {
+        const val = apiKeyInput.value.trim();
+        settings.apiKey = val;
+        saveSettings();
+        saveKeyBtn.innerText = "驗證中...";
+        // 觸發一次 Claim
+        updateDashboard(true).then(() => {
+            saveKeyBtn.innerText = "驗證/儲存";
+            startPolling(); // 重啟輪詢，確保 Heartbeat 啟動
+        });
+    };
+
+    testBtn.onclick = () => {
+        playBell();
+        showToastAlert("測試通知", "<span class='added'>🚀 多頭新增: BTC</span>", "mixed");
+    };
+}
+
+function saveSettings() { localStorage.setItem('cryptoMonitorSettings', JSON.stringify(settings)); }
+function loadSettings() {
+    const saved = localStorage.getItem('cryptoMonitorSettings');
+    if (saved) settings = { ...settings, ...JSON.parse(saved) };
+}
